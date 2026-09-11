@@ -123,6 +123,7 @@
   .team-row:not(:last-child){ border-bottom: 1px solid var(--line); }
   .team-row .t-num{ color: var(--text-dim); font-size: 11.5px; width: 18px; }
   .team-row .t-name{ flex:1; margin-left:4px; }
+  .team-row .t-pts{ font-size: 11px; font-weight:700; color: var(--yellow); margin-right:8px; font-variant-numeric: tabular-nums; }
   .team-row .t-sec{ font-size: 11px; color: var(--text-dim); }
   .team-row.overflow-row{ background: var(--coupee-bg); }
   .team-row.overflow-row .t-name, .team-row.overflow-row .t-num{ color: var(--coupee); font-weight:600; }
@@ -141,7 +142,7 @@
     border-radius: 10px;
     padding: 10px 12px;
     display:grid;
-    grid-template-columns: 34px 26px 1fr;
+    grid-template-columns: 34px 26px 1fr auto auto;
     align-items:center;
     gap: 10px;
     transition: box-shadow .15s ease, transform .15s ease, opacity .15s ease;
@@ -149,6 +150,41 @@
   .row.dragging{ opacity: .4; }
   .row.drag-over{ box-shadow: 0 0 0 2px var(--yellow) inset; }
   .row.cut{ opacity: .55; }
+
+  .row-wrap{ display:flex; flex-direction:column; gap:8px; }
+
+  .score-badge{
+    font-size: 12px; font-weight:700; color: var(--yellow);
+    background: rgba(248,174,27,0.14); padding: 5px 10px; border-radius: 8px;
+    white-space:nowrap; font-variant-numeric: tabular-nums;
+  }
+  .eval-toggle-btn{
+    border: 1px solid var(--line); background: var(--paper); color: var(--text-dim);
+    padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight:600; cursor:pointer;
+    white-space:nowrap; transition: all .12s ease;
+  }
+  .eval-toggle-btn:hover{ border-color: var(--yellow); color: var(--text); }
+  .eval-toggle-btn.open{ background: var(--yellow); border-color: var(--yellow); color:#16151A; }
+
+  .row-eval-inline{
+    background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 14px;
+  }
+  .eval-scale-tag{
+    font-size:10.5px; font-weight:600; color: var(--text-dim); background: var(--card);
+    padding: 1px 7px; border-radius: 10px; margin-left:6px;
+  }
+  .eval-sec-card{ background: rgba(143,168,204,0.1); }
+  .eval-sec-note{ font-size:12.5px; color: var(--navy-2); font-weight:600; }
+
+  .scale-edit-box{
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px;
+    margin: -4px 0 10px;
+  }
+  .ce-chip{
+    font-size: 10.5px; color: var(--text-dim); background: var(--card); border:1px solid var(--line);
+    padding: 1px 7px; border-radius: 10px; display:inline-block; margin: 2px 3px 0 0;
+  }
+  .scale-row{ flex-wrap:wrap; }
 
   .handle{
     cursor: grab;
@@ -201,7 +237,7 @@
   .empty{ text-align:center; padding: 40px 20px; color: var(--text-dim); font-size:14px; }
 
   @media (max-width: 480px){
-    .row{ grid-template-columns: 26px 24px 1fr auto; padding: 9px 8px; }
+    .row{ grid-template-columns: 26px 24px 1fr auto auto; padding: 9px 8px; }
     .name{ font-size:13.5px; }
   }  .tabs{ display:flex; gap:6px; margin-bottom: 16px; border-bottom: 1px solid var(--line); }
   .tab-btn{
@@ -418,7 +454,6 @@
   <div class="tabs">
     <button class="tab-btn active" data-tab="roster">Tri de l'effectif</button>
     <button class="tab-btn" data-tab="repart">Répartition en équipes</button>
-    <button class="tab-btn" data-tab="live">Pointage live</button>
     <button class="tab-btn" data-tab="qualites">Qualités</button>
   </div>
 
@@ -455,25 +490,13 @@
     </div>
   </div>
 
-  <div id="view-live" style="display:none;">
-    <div class="live-layout">
-      <div class="live-side">
-        <div class="live-side-title">Classement live</div>
-        <div id="liveBoard" class="live-board"></div>
-      </div>
-
-      <div class="live-main">
-        <div class="live-side-title">Joueuses — clique pour évaluer</div>
-        <div id="playerChips" class="player-chips player-chips-grid"></div>
-
-        <div id="evalPanel" class="eval-panel" style="display:none;"></div>
-      </div>
-    </div>
-  </div>
-
   <div id="view-qualites" style="display:none;">
-    <div class="live-side-title">Gestion des qualités</div>
-    <p class="qual-intro">Modifie ici les qualités et leur pointage à tout moment — les points déjà attribués aux joueuses suivent automatiquement la mise à jour.</p>
+    <div class="live-side-title">Échelles de pointage</div>
+    <p class="qual-intro">Une échelle définit des paliers (ex: Faible, Correct, Excellent) avec leurs points. Plusieurs qualités peuvent partager la même échelle.</p>
+    <div id="scalesManager" class="criteria-editor"></div>
+
+    <div class="live-side-title" style="margin-top:22px;">Qualités évaluées</div>
+    <p class="qual-intro">Chaque qualité est soit à points fixes, soit rattachée à une échelle ci-dessus. Modifie le nom, le type ou les points directement dans la liste.</p>
     <div id="qualitiesManager" class="criteria-editor"></div>
   </div>
 </div>
@@ -537,12 +560,11 @@ let saveTimer = null;
 let activeTab = "roster";
 let numTeams = 2;
 
-// --- Pointage live ---
-const DEFAULT_CRITERIA = [
+// --- Pointage ---
+const DEFAULT_SCALES = [
   {
-    id: "crit-reception",
-    name: "Réception",
-    type: "scale",
+    id: "scale-5",
+    name: "Échelle 5 pts",
     levels: [
       { label: "Faible", points: 1 },
       { label: "À travailler", points: 2 },
@@ -550,12 +572,31 @@ const DEFAULT_CRITERIA = [
       { label: "Excellent", points: 5 },
     ],
   },
+  {
+    id: "scale-20",
+    name: "Échelle 20 pts",
+    levels: [
+      { label: "À évaluer", points: 0 },
+      { label: "Faible", points: 4 },
+      { label: "En progression", points: 8 },
+      { label: "Correct", points: 15 },
+      { label: "Excellent", points: 20 },
+    ],
+  },
+];
+const DEFAULT_CRITERIA = [
+  { id: "crit-reception", name: "Réception", type: "scale", scaleId: "scale-5" },
   { id: "crit-communication", name: "Communication", type: "flat", points: 5 },
 ];
+let scales = [];
 let criteria = [];
 let evaluations = {}; // { playerId: { qualityId: { type:'scale', levelIndex } | { type:'flat' } } }
-let selectedPlayerId = null;
+let expandedPlayerId = null;
 let liveSaveTimer = null;
+
+function sortedLevels(scale) {
+  return scale.levels.map((lvl, i) => ({ ...lvl, origIndex: i })).sort((a, b) => a.points - b.points);
+}
 
 // Utilise le stockage Claude quand il est présent (dans Claude.ai),
 // sinon bascule automatiquement sur localStorage (ex: GitHub Pages, hébergement externe).
@@ -597,16 +638,32 @@ async function loadState() {
     const liveRes = await storageAdapter.get(LIVE_STORAGE_KEY);
     if (liveRes && liveRes.value) {
       const parsed = JSON.parse(liveRes.value);
+      scales = Array.isArray(parsed.scales) && parsed.scales.length ? parsed.scales : DEFAULT_SCALES;
       criteria = Array.isArray(parsed.criteria) && parsed.criteria.length ? parsed.criteria : DEFAULT_CRITERIA;
       evaluations = parsed.evaluations && typeof parsed.evaluations === "object" ? parsed.evaluations : {};
     } else {
+      scales = DEFAULT_SCALES;
       criteria = DEFAULT_CRITERIA;
       evaluations = {};
     }
   } catch (e) {
+    scales = DEFAULT_SCALES;
     criteria = DEFAULT_CRITERIA;
     evaluations = {};
   }
+
+  // Migration : d'anciennes qualités pouvaient contenir des paliers intégrés
+  // directement (avant l'introduction des échelles réutilisables). On les
+  // convertit en échelle dédiée pour ne perdre aucune donnée existante.
+  criteria.forEach(c => {
+    if (c.type === "scale" && !c.scaleId && Array.isArray(c.levels)) {
+      const migratedScale = { id: "scale-migrated-" + c.id, name: c.name, levels: c.levels };
+      sortLevelsInPlace(migratedScale);
+      scales.push(migratedScale);
+      c.scaleId = migratedScale.id;
+      delete c.levels;
+    }
+  });
 
   render();
 }
@@ -615,9 +672,9 @@ function scheduleSaveLive() {
   clearTimeout(liveSaveTimer);
   liveSaveTimer = setTimeout(async () => {
     try {
-      await storageAdapter.set(LIVE_STORAGE_KEY, JSON.stringify({ criteria, evaluations }));
+      await storageAdapter.set(LIVE_STORAGE_KEY, JSON.stringify({ scales, criteria, evaluations }));
     } catch (e) {
-      // silencieux : le pointage live continue de fonctionner localement même si la sauvegarde échoue
+      // silencieux : le pointage continue de fonctionner localement même si la sauvegarde échoue
     }
   }, 350);
 }
@@ -707,23 +764,38 @@ function renderList() {
     }).join("");
 
     const cutPill = `<button class="pill cut-pill ${isCut ? "active" : ""}" data-toggle="${CUT_ID}" data-owner="${p.id}">Coupée</button>`;
+    const isExpanded = expandedPlayerId === p.id;
 
     return `
-      <div class="row ${isCut ? 'cut' : ''}" draggable="true" data-id="${p.id}">
-        <div class="handle" title="Glisser pour réordonner">⠿</div>
-        <div class="order-num">${globalIndex + 1}</div>
-        <div class="info">
-          <div class="name">${p.name}</div>
-          <div class="meta">
-            <span class="sec-badge">Sec. ${p.sec}</span>
-            <div class="tags">${pillsHtml}${cutPill}</div>
+      <div class="row-wrap">
+        <div class="row ${isCut ? 'cut' : ''}" draggable="true" data-id="${p.id}">
+          <div class="handle" title="Glisser pour réordonner">⠿</div>
+          <div class="order-num">${globalIndex + 1}</div>
+          <div class="info">
+            <div class="name">${p.name}</div>
+            <div class="meta">
+              <span class="sec-badge">Sec. ${p.sec}</span>
+              <div class="tags">${pillsHtml}${cutPill}</div>
+            </div>
           </div>
+          <div class="score-badge" title="Pointage total">${playerTotal(p.id)} pts</div>
+          <button class="eval-toggle-btn ${isExpanded ? "open" : ""}" data-eval="${p.id}">${isExpanded ? "Fermer" : "Noter"}</button>
         </div>
+        ${isExpanded ? `<div class="row-eval-inline" id="rowEval-${p.id}"></div>` : ""}
       </div>
     `;
   }).join("");
 
   attachRowEvents();
+
+  if (expandedPlayerId) {
+    const player = players.find(p => p.id === expandedPlayerId);
+    const container = document.getElementById(`rowEval-${expandedPlayerId}`);
+    if (player && container) {
+      container.innerHTML = evalPanelHTML(player);
+      attachEvalPanelEvents(container, player);
+    }
+  }
 }
 
 function attachRowEvents() {
@@ -745,6 +817,15 @@ function attachRowEvents() {
       renderTeams();
       renderList();
       scheduleSave();
+    };
+  });
+
+  list.querySelectorAll("[data-eval]").forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.eval;
+      expandedPlayerId = expandedPlayerId === id ? null : id;
+      renderList();
     };
   });
 
@@ -814,6 +895,7 @@ function renderTeams() {
         <div class="team-row ${isOverflow ? "overflow-row" : ""}">
           <span class="t-num">${i + 1}</span>
           <span class="t-name">${p.name}</span>
+          <span class="t-pts">${playerTotal(p.id)} pts</span>
           <span class="t-sec">Sec. ${p.sec}</span>
         </div>
       `;
@@ -826,6 +908,7 @@ function renderTeams() {
           <div class="team-row essai-row ${isOverflow ? "overflow-row" : ""}">
             <span class="t-num">${pos}</span>
             <span class="t-name">${p.name}</span>
+            <span class="t-pts">${playerTotal(p.id)} pts</span>
             <span class="t-sec">Sec. ${p.sec}</span>
           </div>
         `;
@@ -854,7 +937,7 @@ function render() {
   renderFilters();
   renderList();
   renderRepart();
-  renderLive();
+  renderScalesManager();
   renderQualitiesManager();
 }
 
@@ -865,11 +948,9 @@ function initTabs() {
       document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b === btn));
       document.getElementById("view-roster").style.display = activeTab === "roster" ? "" : "none";
       document.getElementById("view-repart").style.display = activeTab === "repart" ? "" : "none";
-      document.getElementById("view-live").style.display = activeTab === "live" ? "" : "none";
       document.getElementById("view-qualites").style.display = activeTab === "qualites" ? "" : "none";
       if (activeTab === "repart") renderRepart();
-      if (activeTab === "live") renderLive();
-      if (activeTab === "qualites") renderQualitiesManager();
+      if (activeTab === "qualites") { renderScalesManager(); renderQualitiesManager(); }
     };
   });
 
@@ -894,73 +975,27 @@ function initTabs() {
 }
 
 function playerTotal(playerId) {
+  const player = players.find(p => p.id === playerId);
+  if (!player) return 0;
+  let total = player.sec || 0; // 1 point automatique par niveau de secondaire
   const ev = evaluations[playerId];
-  if (!ev) return 0;
-  let total = 0;
-  for (const qid in ev) {
-    const q = criteria.find(c => c.id === qid);
-    if (!q) continue;
-    if (q.type === "flat") {
-      total += q.points;
-    } else if (q.type === "scale") {
-      const lvl = q.levels[ev[qid].levelIndex];
-      if (lvl) total += lvl.points;
+  if (ev) {
+    for (const qid in ev) {
+      const q = criteria.find(c => c.id === qid);
+      if (!q) continue;
+      if (q.type === "flat") {
+        total += q.points;
+      } else if (q.type === "scale") {
+        const scale = scales.find(s => s.id === q.scaleId);
+        const lvl = scale && scale.levels[ev[qid].levelIndex];
+        if (lvl) total += lvl.points;
+      }
     }
   }
   return total;
 }
 
-function renderLive() {
-  const chipsBox = document.getElementById("playerChips");
-  const boardBox = document.getElementById("liveBoard");
-  const panel = document.getElementById("evalPanel");
-  if (!chipsBox) return;
-
-  const active = players.filter(p => !p.tags.includes(CUT_ID));
-
-  // Grille de sélection des joueuses
-  chipsBox.innerHTML = active.length
-    ? active.map(p => `
-        <button class="player-chip ${p.id === selectedPlayerId ? "active" : ""}" data-select="${p.id}">
-          <span>${p.name}</span>
-          <span class="pc-pts">${playerTotal(p.id)}</span>
-        </button>
-      `).join("")
-    : `<div class="repart-empty">Aucune joueuse active</div>`;
-  chipsBox.querySelectorAll("[data-select]").forEach(btn => {
-    btn.onclick = () => {
-      selectedPlayerId = selectedPlayerId === btn.dataset.select ? null : btn.dataset.select;
-      renderLive();
-    };
-  });
-
-  // Classement live
-  const ranked = active.map(p => ({ p, pts: playerTotal(p.id) }))
-    .filter(r => r.pts > 0)
-    .sort((a, b) => b.pts - a.pts);
-  boardBox.innerHTML = ranked.length
-    ? ranked.map((r, i) => `
-        <div class="board-row">
-          <span class="b-rank">${i + 1}</span>
-          <span class="b-name">${r.p.name}</span>
-          <span class="b-pts">${r.pts}</span>
-        </div>
-      `).join("")
-    : `<div class="repart-empty">Aucun point pour l'instant</div>`;
-
-  // Panneau d'évaluation de la joueuse sélectionnée
-  const activePlayer = players.find(p => p.id === selectedPlayerId);
-  if (!activePlayer) {
-    panel.style.display = "none";
-    panel.innerHTML = "";
-    return;
-  }
-  panel.style.display = "";
-  renderEvalPanel(activePlayer);
-}
-
-function renderEvalPanel(player) {
-  const panel = document.getElementById("evalPanel");
+function evalPanelHTML(player) {
   const ev = evaluations[player.id] || {};
 
   const qualCardsHtml = criteria.map(c => {
@@ -975,40 +1010,53 @@ function renderEvalPanel(player) {
         </div>
       `;
     }
-    const currentLevel = ev[c.id] && ev[c.id].type === "scale" ? ev[c.id].levelIndex : null;
-    const levelsHtml = c.levels.map((lvl, i) => `
-      <button class="eval-level-btn ${currentLevel === i ? "selected" : ""}" data-scale="${c.id}" data-level="${i}">
+    const scale = scales.find(s => s.id === c.scaleId);
+    if (!scale) {
+      return `
+        <div class="eval-qual-card">
+          <div class="eval-qual-name">${c.name}</div>
+          <div class="repart-empty">Échelle manquante</div>
+        </div>
+      `;
+    }
+    const currentLevelIndex = ev[c.id] && ev[c.id].type === "scale" ? ev[c.id].levelIndex : null;
+    // Les paliers sont toujours affichés en ordre croissant de points
+    const levelsHtml = sortedLevels(scale).map(lvl => `
+      <button class="eval-level-btn ${currentLevelIndex === lvl.origIndex ? "selected" : ""}" data-scale="${c.id}" data-level="${lvl.origIndex}">
         ${lvl.label}<span class="lb-pts">${lvl.points} pt${lvl.points > 1 ? "s" : ""}</span>
       </button>
     `).join("");
     return `
       <div class="eval-qual-card">
-        <div class="eval-qual-name">${c.name}</div>
+        <div class="eval-qual-name">${c.name} <span class="eval-scale-tag">${scale.name}</span></div>
         <div class="eval-level-btns">${levelsHtml}</div>
       </div>
     `;
   }).join("");
 
-  panel.innerHTML = `
+  return `
     <div class="eval-panel-head">
       <span class="ep-name">${player.name}</span>
       <span class="ep-pts">${playerTotal(player.id)} pts</span>
-      <button class="eval-panel-close" id="btnCloseEval">✕</button>
+      <button class="eval-panel-close" data-close-eval="${player.id}">✕</button>
     </div>
-    ${qualCardsHtml || `<div class="repart-empty">Aucune qualité définie. Ajoute-en une ci-dessous.</div>`}
-    <div class="eval-quickadd">
-      <input type="text" id="quickAddName" placeholder="Nouvelle qualité (ex: Service)">
-      <input type="number" id="quickAddPoints" value="3" min="1">
-      <button class="chip-btn" id="btnQuickAdd">+ Ajouter (points fixes)</button>
+    <div class="eval-qual-card eval-sec-card">
+      <div class="eval-qual-name">Secondaire (automatique)</div>
+      <div class="eval-sec-note">Sec. ${player.sec} → +${player.sec} pt${player.sec > 1 ? "s" : ""}</div>
     </div>
+    ${qualCardsHtml || `<div class="repart-empty">Aucune qualité définie. Gère-les dans l'onglet Qualités.</div>`}
   `;
+}
 
-  document.getElementById("btnCloseEval").onclick = () => {
-    selectedPlayerId = null;
-    renderLive();
-  };
+function attachEvalPanelEvents(container, player) {
+  container.querySelectorAll("[data-close-eval]").forEach(btn => {
+    btn.onclick = () => {
+      expandedPlayerId = null;
+      renderList();
+    };
+  });
 
-  panel.querySelectorAll("[data-flat]").forEach(btn => {
+  container.querySelectorAll("[data-flat]").forEach(btn => {
     btn.onclick = () => {
       const qid = btn.dataset.flat;
       if (!evaluations[player.id]) evaluations[player.id] = {};
@@ -1017,12 +1065,12 @@ function renderEvalPanel(player) {
       } else {
         evaluations[player.id][qid] = { type: "flat" };
       }
-      renderLive();
+      render();
       scheduleSaveLive();
     };
   });
 
-  panel.querySelectorAll("[data-scale]").forEach(btn => {
+  container.querySelectorAll("[data-scale]").forEach(btn => {
     btn.onclick = () => {
       const qid = btn.dataset.scale;
       const levelIndex = parseInt(btn.dataset.level, 10);
@@ -1034,17 +1082,175 @@ function renderEvalPanel(player) {
       } else {
         evaluations[player.id][qid] = { type: "scale", levelIndex };
       }
-      renderLive();
+      render();
+      scheduleSaveLive();
+    };
+  });
+}
+
+function scaleUsageCount(scaleId) {
+  return criteria.filter(c => c.type === "scale" && c.scaleId === scaleId).length;
+}
+
+function sortLevelsInPlace(scale) {
+  scale.levels.sort((a, b) => a.points - b.points);
+}
+
+function renderScalesManager() {
+  const box = document.getElementById("scalesManager");
+  if (!box) return;
+
+  const existingHtml = scales.map(s => {
+    const usage = scaleUsageCount(s.id);
+    const levelsChips = sortedLevels(s).map(l => `<span class="ce-chip">${l.label} (${l.points})</span>`).join(" ");
+    return `
+      <div class="crit-edit-row scale-row" data-scale-row="${s.id}">
+        <div style="flex:1;min-width:180px;">
+          <div class="ce-name">${s.name}</div>
+          <div class="ce-detail">${levelsChips}</div>
+        </div>
+        <button class="chip-btn" data-editscale="${s.id}">Modifier</button>
+        <button class="crit-del-btn" data-delscale="${s.id}" ${usage ? "disabled title=\"Utilisée par " + usage + " qualité(s)\"" : ""}>Supprimer</button>
+      </div>
+      <div id="scaleEdit-${s.id}" class="scale-edit-box" style="display:none;"></div>
+    `;
+  }).join("");
+
+  box.innerHTML = `
+    ${existingHtml || `<div class="repart-empty">Aucune échelle définie</div>`}
+    <div class="crit-form">
+      <div class="crit-form-row">
+        <input type="text" id="newScaleName" placeholder="Nom de l'échelle (ex: Échelle de 20 pts)">
+      </div>
+      <div id="newScaleLevelsBox" class="crit-levels-editor"></div>
+      <div class="crit-form-row">
+        <button class="chip-btn" id="btnAddScaleLevel">+ Ajouter un palier</button>
+        <button class="chip-btn" id="btnAddScale">Ajouter l'échelle</button>
+      </div>
+    </div>
+  `;
+
+  // Suppression d'une échelle
+  box.querySelectorAll("[data-delscale]").forEach(btn => {
+    btn.onclick = () => {
+      if (btn.disabled) return;
+      const sid = btn.dataset.delscale;
+      scales = scales.filter(s => s.id !== sid);
+      renderScalesManager();
       scheduleSaveLive();
     };
   });
 
-  document.getElementById("btnQuickAdd").onclick = () => {
-    const name = document.getElementById("quickAddName").value.trim();
-    const pts = parseInt(document.getElementById("quickAddPoints").value, 10) || 1;
-    if (!name) return;
-    criteria.push({ id: "crit-" + Date.now(), name, type: "flat", points: pts });
-    renderLive();
+  // Édition d'une échelle existante
+  box.querySelectorAll("[data-editscale]").forEach(btn => {
+    btn.onclick = () => {
+      const sid = btn.dataset.editscale;
+      const editBox = document.getElementById(`scaleEdit-${sid}`);
+      const isOpen = editBox.style.display !== "none";
+      box.querySelectorAll(".scale-edit-box").forEach(e => { e.style.display = "none"; });
+      if (isOpen) return;
+      editBox.style.display = "";
+      renderScaleEditForm(sid, editBox);
+    };
+  });
+
+  function renderScaleEditForm(scaleId, editBox) {
+    const scale = scales.find(s => s.id === scaleId);
+    if (!scale) return;
+    let editLevels = scale.levels.map(l => ({ ...l }));
+
+    function draw() {
+      editBox.innerHTML = `
+        <div class="crit-form-row">
+          <input type="text" data-editscalename="${scaleId}" value="${scale.name}" placeholder="Nom de l'échelle">
+        </div>
+        <div class="crit-levels-editor" data-editlevels="${scaleId}"></div>
+        <div class="crit-form-row">
+          <button class="chip-btn" data-editaddlevel="${scaleId}">+ Ajouter un palier</button>
+          <button class="chip-btn" data-savescale="${scaleId}">Enregistrer</button>
+        </div>
+      `;
+      const lb = editBox.querySelector(`[data-editlevels="${scaleId}"]`);
+      lb.innerHTML = editLevels.map((lvl, i) => `
+        <div class="crit-level-line">
+          <input type="text" data-el-label="${i}" value="${lvl.label}" placeholder="Libellé">
+          <input type="number" data-el-pts="${i}" value="${lvl.points}" min="0">
+          <button class="crit-level-remove" data-el-remove="${i}">✕</button>
+        </div>
+      `).join("");
+      lb.querySelectorAll("[data-el-label]").forEach(inp => {
+        inp.oninput = () => { editLevels[parseInt(inp.dataset.elLabel, 10)].label = inp.value; };
+      });
+      lb.querySelectorAll("[data-el-pts]").forEach(inp => {
+        inp.oninput = () => { editLevels[parseInt(inp.dataset.elPts, 10)].points = parseInt(inp.value, 10) || 0; };
+      });
+      lb.querySelectorAll("[data-el-remove]").forEach(rmBtn => {
+        rmBtn.onclick = () => {
+          editLevels.splice(parseInt(rmBtn.dataset.elRemove, 10), 1);
+          draw();
+        };
+      });
+      editBox.querySelector(`[data-editaddlevel="${scaleId}"]`).onclick = () => {
+        editLevels.push({ label: "", points: 0 });
+        draw();
+      };
+      editBox.querySelector(`[data-savescale="${scaleId}"]`).onclick = () => {
+        const nameInp = editBox.querySelector(`[data-editscalename="${scaleId}"]`);
+        const cleanLevels = editLevels.filter(l => l.label.trim());
+        if (!cleanLevels.length) return;
+        scale.name = nameInp.value.trim() || scale.name;
+        scale.levels = cleanLevels;
+        sortLevelsInPlace(scale);
+        renderScalesManager();
+        scheduleSaveLive();
+      };
+    }
+    draw();
+  }
+
+  // Formulaire d'ajout d'une nouvelle échelle
+  let newScaleLevels = [
+    { label: "Faible", points: 1 },
+    { label: "Excellent", points: 5 },
+  ];
+  function renderNewScaleLevels() {
+    const lb = document.getElementById("newScaleLevelsBox");
+    lb.innerHTML = newScaleLevels.map((lvl, i) => `
+      <div class="crit-level-line">
+        <input type="text" data-nsl-label="${i}" value="${lvl.label}" placeholder="Libellé">
+        <input type="number" data-nsl-pts="${i}" value="${lvl.points}" min="0">
+        <button class="crit-level-remove" data-nsl-remove="${i}">✕</button>
+      </div>
+    `).join("");
+    lb.querySelectorAll("[data-nsl-label]").forEach(inp => {
+      inp.oninput = () => { newScaleLevels[parseInt(inp.dataset.nslLabel, 10)].label = inp.value; };
+    });
+    lb.querySelectorAll("[data-nsl-pts]").forEach(inp => {
+      inp.oninput = () => { newScaleLevels[parseInt(inp.dataset.nslPts, 10)].points = parseInt(inp.value, 10) || 0; };
+    });
+    lb.querySelectorAll("[data-nsl-remove]").forEach(btn => {
+      btn.onclick = () => {
+        newScaleLevels.splice(parseInt(btn.dataset.nslRemove, 10), 1);
+        renderNewScaleLevels();
+      };
+    });
+  }
+  renderNewScaleLevels();
+
+  document.getElementById("btnAddScaleLevel").onclick = () => {
+    newScaleLevels.push({ label: "", points: 0 });
+    renderNewScaleLevels();
+  };
+
+  document.getElementById("btnAddScale").onclick = () => {
+    const name = document.getElementById("newScaleName").value.trim();
+    const cleanLevels = newScaleLevels.filter(l => l.label.trim());
+    if (!name || !cleanLevels.length) return;
+    const scale = { id: "scale-" + Date.now(), name, levels: cleanLevels };
+    sortLevelsInPlace(scale);
+    scales.push(scale);
+    renderScalesManager();
+    renderQualitiesManager();
     scheduleSaveLive();
   };
 }
@@ -1056,15 +1262,24 @@ function renderQualitiesManager() {
   const existingHtml = criteria.map(c => {
     const detail = c.type === "flat"
       ? `Points fixes — ${c.points} pts`
-      : `Échelle — ${c.levels.map(l => `${l.label} (${l.points})`).join(", ")}`;
+      : (() => {
+          const scale = scales.find(s => s.id === c.scaleId);
+          return scale ? `Échelle : ${scale.name}` : "Échelle manquante";
+        })();
     return `
       <div class="crit-edit-row">
-        <span class="ce-name">${c.name}</span>
-        <span class="ce-detail">${detail}</span>
+        <div style="flex:1;min-width:150px;">
+          <div class="ce-name">${c.name}</div>
+          <div class="ce-detail">${detail}</div>
+        </div>
+        <button class="chip-btn" data-editcrit="${c.id}">Modifier</button>
         <button class="crit-del-btn" data-delcrit="${c.id}">Supprimer</button>
       </div>
+      <div id="critEdit-${c.id}" class="scale-edit-box" style="display:none;"></div>
     `;
   }).join("");
+
+  const scaleOptionsHtml = scales.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
 
   box.innerHTML = `
     ${existingHtml || `<div class="repart-empty">Aucune qualité définie</div>`}
@@ -1081,72 +1296,93 @@ function renderQualitiesManager() {
           <input type="number" id="newCritFlatPoints" value="5" min="1" style="width:60px;margin-left:6px;">
         </label>
       </div>
-      <div id="newCritLevelsBox" class="crit-levels-editor" style="display:none;"></div>
+      <div id="newCritScaleRow" class="crit-form-row">
+        <label style="font-size:12.5px;color:var(--text-dim);">Échelle assignée
+          <select id="newCritScaleId" style="margin-left:6px;">${scaleOptionsHtml}</select>
+        </label>
+      </div>
       <div class="crit-form-row">
-        <button class="chip-btn" id="btnAddLevel" style="display:none;">+ Ajouter un niveau</button>
         <button class="chip-btn" id="btnAddCriterion">Ajouter la qualité</button>
       </div>
     </div>
   `;
 
+  if (!scales.length) {
+    document.getElementById("newCritScaleRow").innerHTML =
+      `<span class="ce-detail">Crée d'abord une échelle ci-dessus.</span>`;
+  }
+
+  // Suppression d'une qualité
   box.querySelectorAll("[data-delcrit]").forEach(btn => {
     btn.onclick = () => {
       const qid = btn.dataset.delcrit;
       criteria = criteria.filter(c => c.id !== qid);
-      // Retire aussi toute évaluation existante liée à cette qualité
       Object.values(evaluations).forEach(playerEv => { delete playerEv[qid]; });
       renderQualitiesManager();
+      render();
       scheduleSaveLive();
     };
   });
 
-  let newLevels = [
-    { label: "Faible", points: 1 },
-    { label: "Excellent", points: 5 },
-  ];
-
-  function renderLevelsBox() {
-    const lb = document.getElementById("newCritLevelsBox");
-    lb.innerHTML = newLevels.map((lvl, i) => `
-      <div class="crit-level-line">
-        <input type="text" data-lvl-label="${i}" value="${lvl.label}" placeholder="Libellé">
-        <input type="number" data-lvl-pts="${i}" value="${lvl.points}" min="1">
-        <button class="crit-level-remove" data-lvl-remove="${i}">✕</button>
-      </div>
-    `).join("");
-    lb.querySelectorAll("[data-lvl-label]").forEach(inp => {
-      inp.oninput = () => { newLevels[parseInt(inp.dataset.lvlLabel, 10)].label = inp.value; };
-    });
-    lb.querySelectorAll("[data-lvl-pts]").forEach(inp => {
-      inp.oninput = () => { newLevels[parseInt(inp.dataset.lvlPts, 10)].points = parseInt(inp.value, 10) || 0; };
-    });
-    lb.querySelectorAll("[data-lvl-remove]").forEach(btn => {
-      btn.onclick = () => {
-        newLevels.splice(parseInt(btn.dataset.lvlRemove, 10), 1);
-        renderLevelsBox();
+  // Édition d'une qualité existante (nom, points ou échelle assignée)
+  box.querySelectorAll("[data-editcrit]").forEach(btn => {
+    btn.onclick = () => {
+      const qid = btn.dataset.editcrit;
+      const editBox = document.getElementById(`critEdit-${qid}`);
+      const isOpen = editBox.style.display !== "none";
+      box.querySelectorAll(".scale-edit-box").forEach(e => { e.style.display = "none"; });
+      if (isOpen) return;
+      editBox.style.display = "";
+      const q = criteria.find(c => c.id === qid);
+      if (!q) return;
+      if (q.type === "flat") {
+        editBox.innerHTML = `
+          <div class="crit-form-row">
+            <input type="text" data-editname="${qid}" value="${q.name}" placeholder="Nom">
+            <label style="font-size:12.5px;color:var(--text-dim);">Points
+              <input type="number" data-editpoints="${qid}" value="${q.points}" min="1" style="width:60px;margin-left:6px;">
+            </label>
+            <button class="chip-btn" data-savecrit="${qid}">Enregistrer</button>
+          </div>
+        `;
+      } else {
+        const opts = scales.map(s => `<option value="${s.id}" ${s.id === q.scaleId ? "selected" : ""}>${s.name}</option>`).join("");
+        editBox.innerHTML = `
+          <div class="crit-form-row">
+            <input type="text" data-editname="${qid}" value="${q.name}" placeholder="Nom">
+            <select data-editscaleid="${qid}">${opts}</select>
+            <button class="chip-btn" data-savecrit="${qid}">Enregistrer</button>
+          </div>
+        `;
+      }
+      editBox.querySelector(`[data-savecrit="${qid}"]`).onclick = () => {
+        const nameInp = editBox.querySelector(`[data-editname="${qid}"]`);
+        q.name = nameInp.value.trim() || q.name;
+        if (q.type === "flat") {
+          const ptsInp = editBox.querySelector(`[data-editpoints="${qid}"]`);
+          q.points = parseInt(ptsInp.value, 10) || q.points;
+        } else {
+          const scaleSel = editBox.querySelector(`[data-editscaleid="${qid}"]`);
+          if (scaleSel) q.scaleId = scaleSel.value;
+        }
+        renderQualitiesManager();
+        render();
+        scheduleSaveLive();
       };
-    });
-  }
+    };
+  });
 
   const typeSelect = document.getElementById("newCritType");
   const flatRow = document.getElementById("newCritFlatRow");
-  const levelsBox = document.getElementById("newCritLevelsBox");
-  const addLevelBtn = document.getElementById("btnAddLevel");
+  const scaleRow = document.getElementById("newCritScaleRow");
 
   function syncTypeUI() {
     const isScale = typeSelect.value === "scale";
     flatRow.style.display = isScale ? "none" : "";
-    levelsBox.style.display = isScale ? "" : "none";
-    addLevelBtn.style.display = isScale ? "" : "none";
-    if (isScale) renderLevelsBox();
+    scaleRow.style.display = isScale ? "" : "none";
   }
   typeSelect.onchange = syncTypeUI;
   syncTypeUI();
-
-  addLevelBtn.onclick = () => {
-    newLevels.push({ label: "", points: 1 });
-    renderLevelsBox();
-  };
 
   document.getElementById("btnAddCriterion").onclick = () => {
     const name = document.getElementById("newCritName").value.trim();
@@ -1156,11 +1392,12 @@ function renderQualitiesManager() {
       const pts = parseInt(document.getElementById("newCritFlatPoints").value, 10) || 1;
       criteria.push({ id: "crit-" + Date.now(), name, type: "flat", points: pts });
     } else {
-      const cleanLevels = newLevels.filter(l => l.label.trim());
-      if (!cleanLevels.length) return;
-      criteria.push({ id: "crit-" + Date.now(), name, type: "scale", levels: cleanLevels });
+      if (!scales.length) return;
+      const scaleId = document.getElementById("newCritScaleId").value;
+      criteria.push({ id: "crit-" + Date.now(), name, type: "scale", scaleId });
     }
     renderQualitiesManager();
+    render();
     scheduleSaveLive();
   };
 }
