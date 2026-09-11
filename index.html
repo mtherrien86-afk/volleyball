@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tri des joueuses — Volleyball</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1A2632">
+<link rel="icon" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
 <style>
   :root{
     --navy: #1A2632;
@@ -199,6 +203,204 @@
   @media (max-width: 480px){
     .row{ grid-template-columns: 26px 24px 1fr auto; padding: 9px 8px; }
     .name{ font-size:13.5px; }
+  }  .tabs{ display:flex; gap:6px; margin-bottom: 16px; border-bottom: 1px solid var(--line); }
+  .tab-btn{
+    background: none; border: none; color: var(--text-dim);
+    padding: 9px 14px; font-size: 13.5px; font-weight:600; cursor:pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .15s ease;
+  }
+  .tab-btn:hover{ color: var(--text); }
+  .tab-btn.active{ color: var(--yellow); border-bottom-color: var(--yellow); }
+
+  .repart-controls{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom: 14px;
+  }
+  .repart-num{ font-size: 12.5px; color: var(--text-dim); display:flex; align-items:center; gap:8px; }
+  .repart-num input{
+    width: 56px; background: var(--card); border: 1px solid var(--line); color: var(--text);
+    border-radius: 8px; padding: 6px 8px; font-size: 13.5px; text-align:center;
+  }
+  .repart-layout{ display:grid; grid-template-columns: 240px 1fr; gap: 16px; align-items:start; }
+  @media (max-width: 700px){ .repart-layout{ grid-template-columns: 1fr; } }
+
+  .repart-pool{
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 4px 0;
+  }
+  .repart-pool-title{
+    font-size: 11.5px; font-weight:700; color: var(--text-dim); text-transform:uppercase;
+    letter-spacing: .03em; padding: 10px 14px 6px;
+  }
+  .pool-row{
+    display:flex; align-items:center; gap:8px; padding: 6px 14px; cursor:pointer;
+    font-size: 13px;
+  }
+  .pool-row:hover{ background: var(--paper); }
+  .pool-row input{ accent-color: var(--yellow); width:15px; height:15px; flex-shrink:0; }
+  .pool-row .p-rank{ font-size: 11px; color: var(--text-dim); width:18px; flex-shrink:0; }
+  .pool-row .p-name{ flex:1; }
+  .pool-row.unavailable .p-name{ color: var(--text-dim); text-decoration: line-through; }
+
+  .repart-results{ display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  .repart-team{
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow:hidden;
+  }
+  .repart-team-head{
+    background: var(--navy); color:white; padding: 10px 14px; font-size:13.5px; font-weight:700;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .repart-team-head span{ font-size:11.5px; font-weight:600; color: var(--navy-2); }
+  .repart-player{
+    display:flex; align-items:center; gap:8px; padding: 6px 14px; font-size: 13px;
+  }
+  .repart-player:not(:last-child){ border-bottom: 1px solid #262633; }
+  .repart-player .p-rank{ font-size: 11px; color: var(--text-dim); width:18px; }
+  .repart-empty{ padding: 16px; font-size:12.5px; color: var(--text-dim); text-align:center; }
+
+  /* Pointage live */
+  .live-layout{ display:grid; grid-template-columns: 240px 1fr; gap:16px; align-items:start; }
+  @media (max-width: 700px){ .live-layout{ grid-template-columns: 1fr; } }
+
+  .live-side-title{
+    font-size: 11.5px; font-weight:700; color: var(--text-dim); text-transform:uppercase;
+    letter-spacing:.03em; margin-bottom:8px;
+  }
+  .player-chips{ display:flex; flex-direction:column; gap:5px; max-height:260px; overflow-y:auto; }
+  .player-chip{
+    display:flex; align-items:center; gap:8px; background: var(--card); border:1px solid var(--line);
+    border-radius: 8px; padding: 7px 10px; font-size:13px; cursor:pointer; text-align:left;
+    color: var(--text); transition: all .12s ease;
+  }
+  .player-chip:hover{ border-color: var(--navy-2); }
+  .player-chip.active{ background: var(--yellow); border-color: var(--yellow); color:#16151A; font-weight:700; }
+  .player-chip .pc-pts{ margin-left:auto; font-size:11.5px; opacity:.75; font-variant-numeric: tabular-nums; }
+
+  .live-board{ display:flex; flex-direction:column; gap:4px; }
+  .board-row{
+    display:flex; align-items:center; gap:8px; background: var(--card); border:1px solid var(--line);
+    border-radius:8px; padding:6px 10px; font-size:12.5px;
+  }
+  .board-row .b-rank{ color: var(--text-dim); width:16px; font-weight:700; }
+  .board-row .b-name{ flex:1; }
+  .board-row .b-pts{ font-weight:700; color: var(--yellow); font-variant-numeric: tabular-nums; }
+
+  .active-player-banner{
+    background: linear-gradient(135deg, var(--navy) 0%, var(--court) 100%);
+    border-radius: 12px; padding: 14px 18px; color:white; margin-bottom:14px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .active-player-banner .apb-name{ font-size:16px; font-weight:700; }
+  .active-player-banner .apb-pts{ font-size:22px; font-weight:800; color: var(--yellow); }
+  .active-player-banner.empty{ color: var(--text-dim); font-size:13.5px; justify-content:center; }
+
+  .criteria-buttons{ display:flex; flex-direction:column; gap:10px; margin-bottom:18px; }
+  .criterion-card{
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px;
+  }
+  .criterion-name{ font-size:13px; font-weight:700; margin-bottom:8px; }
+  .level-btns{ display:flex; gap:6px; flex-wrap:wrap; }
+  .level-btn{
+    border: 1px solid var(--line); background: var(--paper); color: var(--text);
+    border-radius: 8px; padding: 8px 12px; font-size:12.5px; font-weight:600; cursor:pointer;
+    transition: all .12s ease; display:flex; flex-direction:column; align-items:center; gap:2px;
+    min-width:74px;
+  }
+  .level-btn:hover{ border-color: var(--yellow); background: var(--essai-bg); }
+  .level-btn:disabled{ opacity:.4; cursor:not-allowed; }
+  .level-btn .lb-pts{ font-size:11px; color: var(--yellow); font-weight:700; }
+  .level-btn.flat{ background: var(--confirmee-bg); border-color: transparent; color: var(--confirmee); }
+
+  .live-history-head{
+    display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;
+  }
+  .live-history-head span{ font-size:12px; font-weight:700; color: var(--text-dim); text-transform:uppercase; letter-spacing:.03em; }
+  .live-history{ display:flex; flex-direction:column; gap:4px; margin-bottom:14px; }
+  .history-row{
+    display:flex; align-items:center; gap:8px; background: var(--card); border:1px solid var(--line);
+    border-radius:8px; padding:6px 10px; font-size:12.5px;
+  }
+  .history-row .h-text{ flex:1; }
+  .history-row .h-pts{ font-weight:700; color: var(--yellow); }
+  .history-row .h-undo{
+    border:none; background:none; color: var(--coupee); cursor:pointer; font-size:12px; font-weight:600;
+  }
+
+  .criteria-editor{
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px;
+  }
+  .crit-edit-row{
+    display:flex; align-items:center; gap:8px; padding: 6px 0; border-bottom:1px solid var(--line);
+    font-size:13px; flex-wrap:wrap;
+  }
+  .crit-edit-row:last-of-type{ border-bottom:none; }
+  .crit-edit-row .ce-name{ font-weight:600; flex:1; min-width:100px; }
+  .crit-edit-row .ce-detail{ font-size:11.5px; color: var(--text-dim); }
+  .crit-del-btn{
+    border:none; background:none; color: var(--coupee); cursor:pointer; font-size:12px; font-weight:600;
+  }
+  .crit-form{ margin-top:12px; padding-top:12px; border-top:1px solid var(--line); }
+  .crit-form input[type="text"], .crit-form input[type="number"], .crit-form select{
+    background: var(--paper); border:1px solid var(--line); color: var(--text);
+    border-radius: 7px; padding: 6px 9px; font-size: 12.5px;
+  }
+  .crit-form-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:8px; }
+  .crit-levels-editor{ display:flex; flex-direction:column; gap:6px; margin: 8px 0; }
+  .crit-level-line{ display:flex; gap:6px; align-items:center; }
+  .crit-level-line input[type="text"]{ flex:1; }
+  .crit-level-line input[type="number"]{ width:64px; }
+  .crit-level-remove{ border:none; background:none; color: var(--coupee); cursor:pointer; font-size:14px; }
+
+  .player-chips-grid{
+    display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:6px; margin-bottom:16px;
+  }
+  .qual-intro{ font-size:12.5px; color: var(--text-dim); margin: 4px 0 16px; max-width: 520px; }
+
+  .eval-panel{
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px;
+  }
+  .eval-panel-head{
+    display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;
+    padding-bottom:12px; border-bottom:1px solid var(--line);
+  }
+  .eval-panel-head .ep-name{ font-size:16px; font-weight:700; }
+  .eval-panel-head .ep-pts{ font-size:22px; font-weight:800; color: var(--yellow); }
+  .eval-panel-close{
+    border:none; background: var(--paper); color: var(--text-dim); width:28px; height:28px;
+    border-radius:8px; cursor:pointer; font-size:14px; margin-left:10px;
+  }
+  .eval-panel-close:hover{ color: var(--text); }
+  .eval-qual-card{
+    background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px;
+    margin-bottom:10px;
+  }
+  .eval-qual-name{ font-size:13px; font-weight:700; margin-bottom:8px; }
+  .eval-level-btns{ display:flex; gap:6px; flex-wrap:wrap; }
+  .eval-level-btn{
+    border: 1px solid var(--line); background: var(--card); color: var(--text);
+    border-radius: 8px; padding: 8px 12px; font-size:12.5px; font-weight:600; cursor:pointer;
+    transition: all .12s ease; display:flex; flex-direction:column; align-items:center; gap:2px;
+    min-width:74px;
+  }
+  .eval-level-btn:hover{ border-color: var(--yellow); }
+  .eval-level-btn .lb-pts{ font-size:11px; color: var(--text-dim); font-weight:700; }
+  .eval-level-btn.selected{ background: var(--yellow); border-color: var(--yellow); color:#16151A; }
+  .eval-level-btn.selected .lb-pts{ color:#16151A; opacity:.75; }
+  .eval-flat-btn{
+    border: 1px solid var(--line); background: var(--card); color: var(--text);
+    border-radius: 8px; padding: 8px 14px; font-size:12.5px; font-weight:600; cursor:pointer;
+  }
+  .eval-flat-btn.selected{ background: var(--confirmee-bg); border-color: transparent; color: var(--confirmee); }
+
+  .eval-quickadd{
+    display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:4px; padding-top:12px;
+    border-top: 1px solid var(--line);
+  }
+  .eval-quickadd input[type="text"]{
+    flex:1; min-width:140px; background: var(--paper); border:1px solid var(--line); color: var(--text);
+    border-radius: 7px; padding: 7px 10px; font-size: 12.5px;
+  }
+  .eval-quickadd input[type="number"]{
+    width: 70px; background: var(--paper); border:1px solid var(--line); color: var(--text);
+    border-radius: 7px; padding: 7px 10px; font-size: 12.5px;
   }
 </style>
 </head>
@@ -213,6 +415,14 @@
     </div>
   </header>
 
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="roster">Tri de l'effectif</button>
+    <button class="tab-btn" data-tab="repart">Répartition en équipes</button>
+    <button class="tab-btn" data-tab="live">Pointage live</button>
+    <button class="tab-btn" data-tab="qualites">Qualités</button>
+  </div>
+
+  <div id="view-roster">
   <div class="teams" id="teams"></div>
 
   <div class="toolbar">
@@ -224,10 +434,53 @@
 
   <div class="list" id="list"></div>
   <div class="empty" id="emptyMsg" style="display:none;">Aucune joueuse ne correspond à ce filtre.</div>
+  </div>
+
+  <div id="view-repart" style="display:none;">
+    <div class="repart-controls">
+      <label class="repart-num">Nombre d'équipes
+        <input type="number" id="numTeamsInput" min="2" max="8" value="2">
+      </label>
+      <div class="spacer"></div>
+      <button class="chip-btn" id="btnAllAvail">Toutes disponibles</button>
+      <button class="chip-btn" id="btnNoneAvail">Aucune disponible</button>
+    </div>
+
+    <div class="repart-layout">
+      <div class="repart-pool">
+        <div class="repart-pool-title">Disponibles aujourd'hui</div>
+        <div id="poolList"></div>
+      </div>
+      <div class="repart-results" id="repartResults"></div>
+    </div>
+  </div>
+
+  <div id="view-live" style="display:none;">
+    <div class="live-layout">
+      <div class="live-side">
+        <div class="live-side-title">Classement live</div>
+        <div id="liveBoard" class="live-board"></div>
+      </div>
+
+      <div class="live-main">
+        <div class="live-side-title">Joueuses — clique pour évaluer</div>
+        <div id="playerChips" class="player-chips player-chips-grid"></div>
+
+        <div id="evalPanel" class="eval-panel" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-qualites" style="display:none;">
+    <div class="live-side-title">Gestion des qualités</div>
+    <p class="qual-intro">Modifie ici les qualités et leur pointage à tout moment — les points déjà attribués aux joueuses suivent automatiquement la mise à jour.</p>
+    <div id="qualitiesManager" class="criteria-editor"></div>
+  </div>
 </div>
 
 <script>
 const STORAGE_KEY = "volleyball-roster-v1";
+const LIVE_STORAGE_KEY = "volleyball-live-v1";
 const STATUS_OPTIONS = [
   { id: "cadette-essai", label: "Cad. essai", cls: "essai", team: "cadette" },
   { id: "cadette-confirmee", label: "Cad. confirmée", cls: "confirmee", team: "cadette" },
@@ -281,10 +534,48 @@ let filterSec = "all";
 let filterTag = "all";
 let dragId = null;
 let saveTimer = null;
+let activeTab = "roster";
+let numTeams = 2;
+
+// --- Pointage live ---
+const DEFAULT_CRITERIA = [
+  {
+    id: "crit-reception",
+    name: "Réception",
+    type: "scale",
+    levels: [
+      { label: "Faible", points: 1 },
+      { label: "À travailler", points: 2 },
+      { label: "Correct", points: 3 },
+      { label: "Excellent", points: 5 },
+    ],
+  },
+  { id: "crit-communication", name: "Communication", type: "flat", points: 5 },
+];
+let criteria = [];
+let evaluations = {}; // { playerId: { qualityId: { type:'scale', levelIndex } | { type:'flat' } } }
+let selectedPlayerId = null;
+let liveSaveTimer = null;
+
+// Utilise le stockage Claude quand il est présent (dans Claude.ai),
+// sinon bascule automatiquement sur localStorage (ex: GitHub Pages, hébergement externe).
+const hasClaudeStorage = typeof window.storage !== "undefined" && window.storage !== null;
+const storageAdapter = {
+  async get(key) {
+    if (hasClaudeStorage) return await window.storage.get(key, false);
+    const raw = localStorage.getItem(key);
+    return raw !== null ? { key, value: raw, shared: false } : null;
+  },
+  async set(key, value) {
+    if (hasClaudeStorage) return await window.storage.set(key, value, false);
+    localStorage.setItem(key, value);
+    return { key, value, shared: false };
+  },
+};
 
 async function loadState() {
   try {
-    const res = await window.storage.get(STORAGE_KEY, false);
+    const res = await storageAdapter.get(STORAGE_KEY);
     if (res && res.value) {
       players = JSON.parse(res.value);
     } else {
@@ -298,8 +589,37 @@ async function loadState() {
     if (p.sec > MAX_SEC_FOR_BENJAMINE) {
       p.tags = p.tags.filter(t => t !== "benjamine-essai" && t !== "benjamine-confirmee");
     }
+    // Champ de disponibilité pour la répartition en équipes (par défaut : disponible)
+    if (typeof p.available !== "boolean") p.available = true;
   });
+
+  try {
+    const liveRes = await storageAdapter.get(LIVE_STORAGE_KEY);
+    if (liveRes && liveRes.value) {
+      const parsed = JSON.parse(liveRes.value);
+      criteria = Array.isArray(parsed.criteria) && parsed.criteria.length ? parsed.criteria : DEFAULT_CRITERIA;
+      evaluations = parsed.evaluations && typeof parsed.evaluations === "object" ? parsed.evaluations : {};
+    } else {
+      criteria = DEFAULT_CRITERIA;
+      evaluations = {};
+    }
+  } catch (e) {
+    criteria = DEFAULT_CRITERIA;
+    evaluations = {};
+  }
+
   render();
+}
+
+function scheduleSaveLive() {
+  clearTimeout(liveSaveTimer);
+  liveSaveTimer = setTimeout(async () => {
+    try {
+      await storageAdapter.set(LIVE_STORAGE_KEY, JSON.stringify({ criteria, evaluations }));
+    } catch (e) {
+      // silencieux : le pointage live continue de fonctionner localement même si la sauvegarde échoue
+    }
+  }, 350);
 }
 
 function scheduleSave() {
@@ -310,7 +630,7 @@ function scheduleSave() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
     try {
-      await window.storage.set(STORAGE_KEY, JSON.stringify(players), false);
+      await storageAdapter.set(STORAGE_KEY, JSON.stringify(players));
       dot.classList.add("ok");
       text.textContent = "Sauvegardé";
     } catch (e) {
@@ -533,9 +853,391 @@ function render() {
   renderTeams();
   renderFilters();
   renderList();
+  renderRepart();
+  renderLive();
+  renderQualitiesManager();
+}
+
+function initTabs() {
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.onclick = () => {
+      activeTab = btn.dataset.tab;
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b === btn));
+      document.getElementById("view-roster").style.display = activeTab === "roster" ? "" : "none";
+      document.getElementById("view-repart").style.display = activeTab === "repart" ? "" : "none";
+      document.getElementById("view-live").style.display = activeTab === "live" ? "" : "none";
+      document.getElementById("view-qualites").style.display = activeTab === "qualites" ? "" : "none";
+      if (activeTab === "repart") renderRepart();
+      if (activeTab === "live") renderLive();
+      if (activeTab === "qualites") renderQualitiesManager();
+    };
+  });
+
+  const numInput = document.getElementById("numTeamsInput");
+  numInput.value = numTeams;
+  numInput.oninput = () => {
+    const v = parseInt(numInput.value, 10);
+    numTeams = Number.isFinite(v) && v >= 2 ? Math.min(v, 8) : 2;
+    renderRepart();
+  };
+
+  document.getElementById("btnAllAvail").onclick = () => {
+    players.forEach(p => { if (!p.tags.includes(CUT_ID)) p.available = true; });
+    renderRepart();
+    scheduleSave();
+  };
+  document.getElementById("btnNoneAvail").onclick = () => {
+    players.forEach(p => { p.available = false; });
+    renderRepart();
+    scheduleSave();
+  };
+}
+
+function playerTotal(playerId) {
+  const ev = evaluations[playerId];
+  if (!ev) return 0;
+  let total = 0;
+  for (const qid in ev) {
+    const q = criteria.find(c => c.id === qid);
+    if (!q) continue;
+    if (q.type === "flat") {
+      total += q.points;
+    } else if (q.type === "scale") {
+      const lvl = q.levels[ev[qid].levelIndex];
+      if (lvl) total += lvl.points;
+    }
+  }
+  return total;
+}
+
+function renderLive() {
+  const chipsBox = document.getElementById("playerChips");
+  const boardBox = document.getElementById("liveBoard");
+  const panel = document.getElementById("evalPanel");
+  if (!chipsBox) return;
+
+  const active = players.filter(p => !p.tags.includes(CUT_ID));
+
+  // Grille de sélection des joueuses
+  chipsBox.innerHTML = active.length
+    ? active.map(p => `
+        <button class="player-chip ${p.id === selectedPlayerId ? "active" : ""}" data-select="${p.id}">
+          <span>${p.name}</span>
+          <span class="pc-pts">${playerTotal(p.id)}</span>
+        </button>
+      `).join("")
+    : `<div class="repart-empty">Aucune joueuse active</div>`;
+  chipsBox.querySelectorAll("[data-select]").forEach(btn => {
+    btn.onclick = () => {
+      selectedPlayerId = selectedPlayerId === btn.dataset.select ? null : btn.dataset.select;
+      renderLive();
+    };
+  });
+
+  // Classement live
+  const ranked = active.map(p => ({ p, pts: playerTotal(p.id) }))
+    .filter(r => r.pts > 0)
+    .sort((a, b) => b.pts - a.pts);
+  boardBox.innerHTML = ranked.length
+    ? ranked.map((r, i) => `
+        <div class="board-row">
+          <span class="b-rank">${i + 1}</span>
+          <span class="b-name">${r.p.name}</span>
+          <span class="b-pts">${r.pts}</span>
+        </div>
+      `).join("")
+    : `<div class="repart-empty">Aucun point pour l'instant</div>`;
+
+  // Panneau d'évaluation de la joueuse sélectionnée
+  const activePlayer = players.find(p => p.id === selectedPlayerId);
+  if (!activePlayer) {
+    panel.style.display = "none";
+    panel.innerHTML = "";
+    return;
+  }
+  panel.style.display = "";
+  renderEvalPanel(activePlayer);
+}
+
+function renderEvalPanel(player) {
+  const panel = document.getElementById("evalPanel");
+  const ev = evaluations[player.id] || {};
+
+  const qualCardsHtml = criteria.map(c => {
+    if (c.type === "flat") {
+      const selected = !!ev[c.id];
+      return `
+        <div class="eval-qual-card">
+          <div class="eval-qual-name">${c.name}</div>
+          <button class="eval-flat-btn ${selected ? "selected" : ""}" data-flat="${c.id}">
+            ${selected ? "✓ Sélectionnée" : `Sélectionner (${c.points} pts)`}
+          </button>
+        </div>
+      `;
+    }
+    const currentLevel = ev[c.id] && ev[c.id].type === "scale" ? ev[c.id].levelIndex : null;
+    const levelsHtml = c.levels.map((lvl, i) => `
+      <button class="eval-level-btn ${currentLevel === i ? "selected" : ""}" data-scale="${c.id}" data-level="${i}">
+        ${lvl.label}<span class="lb-pts">${lvl.points} pt${lvl.points > 1 ? "s" : ""}</span>
+      </button>
+    `).join("");
+    return `
+      <div class="eval-qual-card">
+        <div class="eval-qual-name">${c.name}</div>
+        <div class="eval-level-btns">${levelsHtml}</div>
+      </div>
+    `;
+  }).join("");
+
+  panel.innerHTML = `
+    <div class="eval-panel-head">
+      <span class="ep-name">${player.name}</span>
+      <span class="ep-pts">${playerTotal(player.id)} pts</span>
+      <button class="eval-panel-close" id="btnCloseEval">✕</button>
+    </div>
+    ${qualCardsHtml || `<div class="repart-empty">Aucune qualité définie. Ajoute-en une ci-dessous.</div>`}
+    <div class="eval-quickadd">
+      <input type="text" id="quickAddName" placeholder="Nouvelle qualité (ex: Service)">
+      <input type="number" id="quickAddPoints" value="3" min="1">
+      <button class="chip-btn" id="btnQuickAdd">+ Ajouter (points fixes)</button>
+    </div>
+  `;
+
+  document.getElementById("btnCloseEval").onclick = () => {
+    selectedPlayerId = null;
+    renderLive();
+  };
+
+  panel.querySelectorAll("[data-flat]").forEach(btn => {
+    btn.onclick = () => {
+      const qid = btn.dataset.flat;
+      if (!evaluations[player.id]) evaluations[player.id] = {};
+      if (evaluations[player.id][qid]) {
+        delete evaluations[player.id][qid];
+      } else {
+        evaluations[player.id][qid] = { type: "flat" };
+      }
+      renderLive();
+      scheduleSaveLive();
+    };
+  });
+
+  panel.querySelectorAll("[data-scale]").forEach(btn => {
+    btn.onclick = () => {
+      const qid = btn.dataset.scale;
+      const levelIndex = parseInt(btn.dataset.level, 10);
+      if (!evaluations[player.id]) evaluations[player.id] = {};
+      const current = evaluations[player.id][qid];
+      if (current && current.type === "scale" && current.levelIndex === levelIndex) {
+        // Re-cliquer sur le même palier le désélectionne
+        delete evaluations[player.id][qid];
+      } else {
+        evaluations[player.id][qid] = { type: "scale", levelIndex };
+      }
+      renderLive();
+      scheduleSaveLive();
+    };
+  });
+
+  document.getElementById("btnQuickAdd").onclick = () => {
+    const name = document.getElementById("quickAddName").value.trim();
+    const pts = parseInt(document.getElementById("quickAddPoints").value, 10) || 1;
+    if (!name) return;
+    criteria.push({ id: "crit-" + Date.now(), name, type: "flat", points: pts });
+    renderLive();
+    scheduleSaveLive();
+  };
+}
+
+function renderQualitiesManager() {
+  const box = document.getElementById("qualitiesManager");
+  if (!box) return;
+
+  const existingHtml = criteria.map(c => {
+    const detail = c.type === "flat"
+      ? `Points fixes — ${c.points} pts`
+      : `Échelle — ${c.levels.map(l => `${l.label} (${l.points})`).join(", ")}`;
+    return `
+      <div class="crit-edit-row">
+        <span class="ce-name">${c.name}</span>
+        <span class="ce-detail">${detail}</span>
+        <button class="crit-del-btn" data-delcrit="${c.id}">Supprimer</button>
+      </div>
+    `;
+  }).join("");
+
+  box.innerHTML = `
+    ${existingHtml || `<div class="repart-empty">Aucune qualité définie</div>`}
+    <div class="crit-form">
+      <div class="crit-form-row">
+        <input type="text" id="newCritName" placeholder="Nom de la qualité (ex: Attaque)">
+        <select id="newCritType">
+          <option value="scale">Échelle de niveaux</option>
+          <option value="flat">Points fixes</option>
+        </select>
+      </div>
+      <div id="newCritFlatRow" class="crit-form-row">
+        <label style="font-size:12.5px;color:var(--text-dim);">Points par sélection
+          <input type="number" id="newCritFlatPoints" value="5" min="1" style="width:60px;margin-left:6px;">
+        </label>
+      </div>
+      <div id="newCritLevelsBox" class="crit-levels-editor" style="display:none;"></div>
+      <div class="crit-form-row">
+        <button class="chip-btn" id="btnAddLevel" style="display:none;">+ Ajouter un niveau</button>
+        <button class="chip-btn" id="btnAddCriterion">Ajouter la qualité</button>
+      </div>
+    </div>
+  `;
+
+  box.querySelectorAll("[data-delcrit]").forEach(btn => {
+    btn.onclick = () => {
+      const qid = btn.dataset.delcrit;
+      criteria = criteria.filter(c => c.id !== qid);
+      // Retire aussi toute évaluation existante liée à cette qualité
+      Object.values(evaluations).forEach(playerEv => { delete playerEv[qid]; });
+      renderQualitiesManager();
+      scheduleSaveLive();
+    };
+  });
+
+  let newLevels = [
+    { label: "Faible", points: 1 },
+    { label: "Excellent", points: 5 },
+  ];
+
+  function renderLevelsBox() {
+    const lb = document.getElementById("newCritLevelsBox");
+    lb.innerHTML = newLevels.map((lvl, i) => `
+      <div class="crit-level-line">
+        <input type="text" data-lvl-label="${i}" value="${lvl.label}" placeholder="Libellé">
+        <input type="number" data-lvl-pts="${i}" value="${lvl.points}" min="1">
+        <button class="crit-level-remove" data-lvl-remove="${i}">✕</button>
+      </div>
+    `).join("");
+    lb.querySelectorAll("[data-lvl-label]").forEach(inp => {
+      inp.oninput = () => { newLevels[parseInt(inp.dataset.lvlLabel, 10)].label = inp.value; };
+    });
+    lb.querySelectorAll("[data-lvl-pts]").forEach(inp => {
+      inp.oninput = () => { newLevels[parseInt(inp.dataset.lvlPts, 10)].points = parseInt(inp.value, 10) || 0; };
+    });
+    lb.querySelectorAll("[data-lvl-remove]").forEach(btn => {
+      btn.onclick = () => {
+        newLevels.splice(parseInt(btn.dataset.lvlRemove, 10), 1);
+        renderLevelsBox();
+      };
+    });
+  }
+
+  const typeSelect = document.getElementById("newCritType");
+  const flatRow = document.getElementById("newCritFlatRow");
+  const levelsBox = document.getElementById("newCritLevelsBox");
+  const addLevelBtn = document.getElementById("btnAddLevel");
+
+  function syncTypeUI() {
+    const isScale = typeSelect.value === "scale";
+    flatRow.style.display = isScale ? "none" : "";
+    levelsBox.style.display = isScale ? "" : "none";
+    addLevelBtn.style.display = isScale ? "" : "none";
+    if (isScale) renderLevelsBox();
+  }
+  typeSelect.onchange = syncTypeUI;
+  syncTypeUI();
+
+  addLevelBtn.onclick = () => {
+    newLevels.push({ label: "", points: 1 });
+    renderLevelsBox();
+  };
+
+  document.getElementById("btnAddCriterion").onclick = () => {
+    const name = document.getElementById("newCritName").value.trim();
+    if (!name) return;
+    const type = typeSelect.value;
+    if (type === "flat") {
+      const pts = parseInt(document.getElementById("newCritFlatPoints").value, 10) || 1;
+      criteria.push({ id: "crit-" + Date.now(), name, type: "flat", points: pts });
+    } else {
+      const cleanLevels = newLevels.filter(l => l.label.trim());
+      if (!cleanLevels.length) return;
+      criteria.push({ id: "crit-" + Date.now(), name, type: "scale", levels: cleanLevels });
+    }
+    renderQualitiesManager();
+    scheduleSaveLive();
+  };
+}
+
+
+function renderRepart() {
+  const poolList = document.getElementById("poolList");
+  const resultsBox = document.getElementById("repartResults");
+  if (!poolList || !resultsBox) return;
+
+  // Bassin : toutes les joueuses non coupées, dans leur ordre de rang actuel
+  const pool = players.filter(p => !p.tags.includes(CUT_ID));
+
+  poolList.innerHTML = pool.length
+    ? pool.map((p) => {
+        const rank = players.findIndex(x => x.id === p.id) + 1;
+        return `
+          <label class="pool-row ${p.available ? "" : "unavailable"}">
+            <input type="checkbox" data-avail="${p.id}" ${p.available ? "checked" : ""}>
+            <span class="p-rank">#${rank}</span>
+            <span class="p-name">${p.name}</span>
+          </label>
+        `;
+      }).join("")
+    : `<div class="repart-empty">Aucune joueuse active</div>`;
+
+  poolList.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.onchange = () => {
+      const player = players.find(p => p.id === cb.dataset.avail);
+      if (!player) return;
+      player.available = cb.checked;
+      renderRepart();
+      scheduleSave();
+    };
+  });
+
+  // Répartition en tourniquet (round-robin) selon le rang de sélection actuel :
+  // rang 1 -> équipe 1, rang 2 -> équipe 2, ... rang N -> équipe N, rang N+1 -> équipe 1, etc.
+  const available = pool.filter(p => p.available);
+  const teams = Array.from({ length: numTeams }, () => []);
+  available.forEach((p, i) => {
+    teams[i % numTeams].push(p);
+  });
+
+  resultsBox.innerHTML = teams.map((team, i) => {
+    const rowsHtml = team.length
+      ? team.map(p => {
+          const rank = players.findIndex(x => x.id === p.id) + 1;
+          return `
+            <div class="repart-player">
+              <span class="p-rank">#${rank}</span>
+              <span class="p-name">${p.name}</span>
+            </div>
+          `;
+        }).join("")
+      : `<div class="repart-empty">Vide</div>`;
+
+    return `
+      <div class="repart-team">
+        <div class="repart-team-head">Équipe ${i + 1}<span>${team.length}</span></div>
+        ${rowsHtml}
+      </div>
+    `;
+  }).join("");
 }
 
 loadState();
+initTabs();
+
+// Enregistrement du service worker pour le fonctionnement hors connexion
+// (n'a d'effet que lorsque le fichier est hébergé en ligne, ex: GitHub Pages —
+// ignoré sans erreur si ouvert directement comme fichier local ou dans Claude).
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
 </script>
 </body>
 </html>
