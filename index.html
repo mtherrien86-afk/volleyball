@@ -718,6 +718,27 @@ async function loadState() {
     if (raw) cached = JSON.parse(raw);
   } catch (e) { /* copie locale corrompue, on l'ignore */ }
 
+  // Migration depuis l'ancienne version (avant la synchro en ligne) : si on
+  // n'a pas encore de copie au nouveau format, on va chercher les anciennes
+  // clés localStorage plutôt que d'écraser avec les données d'exemple.
+  if (!cached) {
+    try {
+      const oldRoster = localStorage.getItem("volleyball-roster-v1");
+      const oldLive = localStorage.getItem("volleyball-live-v1");
+      if (oldRoster || oldLive) {
+        const oldLiveParsed = oldLive ? JSON.parse(oldLive) : {};
+        cached = {
+          players: oldRoster ? JSON.parse(oldRoster) : initialData,
+          scales: oldLiveParsed.scales,
+          criteria: oldLiveParsed.criteria,
+          evaluations: oldLiveParsed.evaluations,
+          lastModified: 0, // volontairement à 0 : ne doit jamais gagner contre une vraie sauvegarde en ligne, juste servir de point de départ
+          updatedBy: deviceLabel + " (récupéré de l'ancienne version locale)"
+        };
+      }
+    } catch (e) { /* pas d'ancienne donnée exploitable */ }
+  }
+
   applyState(cached || { players: initialData, scales: DEFAULT_SCALES, criteria: DEFAULT_CRITERIA, evaluations: {} });
   lastSyncedModified = (cached && cached.lastModified) || 0;
   render();
