@@ -441,7 +441,19 @@
 </style>
 </head>
 <body>
-<div class="app">
+
+<div id="loginGate" style="display:none; min-height:100vh; align-items:center; justify-content:center; padding:20px;">
+  <form id="loginForm" style="background: var(--card); border:1px solid var(--line); border-radius:14px; padding:28px 26px; max-width:340px; width:100%; text-align:center;">
+    <div style="font-size:22px; font-weight:700; margin-bottom:6px;">Tri des joueuses</div>
+    <p style="color: var(--text-dim); font-size:13px; margin:0 0 18px;">Entre le mot de passe d'équipe pour accéder aux données.</p>
+    <input id="loginPassword" type="password" placeholder="Mot de passe" autocomplete="current-password"
+      style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background: var(--paper); color: var(--text); font-size:14px; margin-bottom:10px; box-sizing:border-box;">
+    <button type="submit" style="width:100%; padding:10px 12px; border-radius:8px; border:none; background: var(--yellow); color:#16151A; font-weight:700; font-size:14px; cursor:pointer;">Entrer</button>
+    <div id="loginError" style="color: var(--coupee); font-size:12.5px; margin-top:10px; min-height:16px;"></div>
+  </form>
+</div>
+
+<div class="app" style="display:none;">
   <div id="remoteUpdateBanner" style="display:none; align-items:center; justify-content:space-between; gap:10px; background: var(--essai-bg); color: var(--essai); padding:10px 14px; border-radius:10px; margin-bottom:14px; font-size:13px;">
     <span id="remoteUpdateText"></span>
     <button id="remoteUpdateBtn" class="chip-btn" style="white-space:nowrap; border-color: var(--essai); color: var(--essai);">Charger cette version</button>
@@ -468,7 +480,7 @@
     <div class="group" id="filterSec"></div>
     <div class="group" id="filterTag"></div>
     <div class="spacer"></div>
-    <div class="save-note"><span class="dot" id="saveDot"></span><span id="saveText">Chargement…</span></div>
+    <div class="save-note"><span class="dot" id="saveDot"></span><span id="saveText">Chargement…</span><a href="#" id="logoutLink" style="margin-left:10px; color: var(--text-dim); text-decoration:underline; font-size:11.5px;">Se déconnecter</a></div>
   </div>
 
   <div class="list" id="list"></div>
@@ -508,6 +520,7 @@
 <!-- Firebase (version "compat", utilisable sans bundler ni import ES) -->
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyCBXdLibA9PPu8Hw94y_5tF-XRLtnJsmNs",
@@ -634,6 +647,11 @@ const deviceLabel = getDeviceLabel();
 
 let db = null;
 let stateDocRef = null;
+let auth = null;
+// Adresse technique fixe utilisée en coulisses par Firebase Authentication —
+// l'équipe n'a besoin de connaître que le mot de passe, pas cette adresse.
+const TEAM_EMAIL = "equipe@tri-bateliers.app";
+
 try {
   if (typeof firebase !== "undefined" && firebase.apps.length === 0) {
     firebase.initializeApp(firebaseConfig);
@@ -644,9 +662,64 @@ try {
       console.warn("Persistance hors-ligne Firestore non disponible :", err.code);
     });
     stateDocRef = db.collection("bateliers").doc("state");
+
+    auth = firebase.auth();
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
   }
 } catch (e) {
   console.warn("Firebase non initialisé — mode local uniquement.", e);
+}
+
+function showLoginGate() {
+  const gate = document.getElementById("loginGate");
+  const app = document.querySelector(".app");
+  if (gate) gate.style.display = "flex";
+  if (app) app.style.display = "none";
+}
+
+function hideLoginGate() {
+  const gate = document.getElementById("loginGate");
+  const app = document.querySelector(".app");
+  if (gate) gate.style.display = "none";
+  if (app) app.style.display = "";
+}
+
+if (auth) {
+  auth.onAuthStateChanged((user) => {
+    if (user) {
+      hideLoginGate();
+      loadState();
+    } else {
+      showLoginGate();
+    }
+  });
+
+  const loginForm = document.getElementById("loginForm");
+  if (loginForm) {
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const pwdInput = document.getElementById("loginPassword");
+      const errEl = document.getElementById("loginError");
+      errEl.textContent = "";
+      try {
+        await auth.signInWithEmailAndPassword(TEAM_EMAIL, pwdInput.value);
+      } catch (err) {
+        errEl.textContent = "Mot de passe incorrect.";
+      }
+    });
+  }
+
+  document.addEventListener("click", (e) => {
+    if (e.target && e.target.id === "logoutLink") {
+      e.preventDefault();
+      auth.signOut();
+    }
+  });
+} else {
+  // Firebase indisponible (ex: bloqué par un bloqueur de pub) — on ne bloque
+  // pas l'accès à l'app, elle fonctionnera juste en mode local uniquement.
+  hideLoginGate();
+  loadState();
 }
 
 function updateSyncUI(who, when, offline) {
@@ -1608,7 +1681,6 @@ function renderRepart() {
   }).join("");
 }
 
-loadState();
 initTabs();
 
 // Enregistrement du service worker pour le fonctionnement hors connexion
