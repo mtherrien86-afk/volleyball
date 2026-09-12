@@ -679,20 +679,28 @@ function scheduleSaveLive() {
   }, 350);
 }
 
+// Remplacez votre fonction scheduleSave() actuelle par celle-ci :
 function scheduleSave() {
   const dot = document.getElementById("saveDot");
   const text = document.getElementById("saveText");
-  dot.classList.remove("ok");
-  text.textContent = "Sauvegarde…";
+  if (dot) dot.classList.remove("ok");
+  if (text) text.textContent = "Sauvegarde…";
+
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
+    // 1. Sauvegarde locale immédiate dans l'application
     try {
       await storageAdapter.set(STORAGE_KEY, JSON.stringify(players));
-      dot.classList.add("ok");
-      text.textContent = "Sauvegardé";
     } catch (e) {
-      text.textContent = "Erreur de sauvegarde";
+      console.warn("Erreur stockage local", e);
     }
+
+    // 2. Envoi en ligne / mise en attente hors-ligne (Background Sync)
+    await saveDataOnlineOrOffline({
+      type: "roster",
+      players: players,
+      updatedAt: Date.now()
+    });
   }, 350);
 }
 
@@ -1475,6 +1483,92 @@ if ("serviceWorker" in navigator && (location.protocol === "https:" || location.
     navigator.serviceWorker.register("sw.js").catch(() => {});
   });
 }
+</script>
+
+<script>
+// Enregistrement du Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js')
+    .then(reg => console.log('Service Worker enregistré avec succès:', reg.scope))
+    .catch(err => console.error('Échec enregistrement Service Worker:', err));
+}
+
+// 1. Initialisation d'IndexedDB pour stockage local structuré
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open("BateliersDB", 1);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains("pending_data")) {
+        db.createObjectStore("pending_data", { keyPath: "id", autoIncrement: true });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// 2. Fonction principale de sauvegarde (Gère le mode En Ligne / Hors Ligne)
+async function saveDataOnlineOrOffline(data) {
+  const saveNote = document.querySelector('.save-note') || document.getElementById('sync-status');
+  const dot = document.querySelector('.dot') || document.getElementById('sync-dot');
+
+  // Remplacez cette URL par votre point d'accès API réel
+  const API_ENDPOINT = 'https://votre-api.com/enregistrer';
+
+  if (navigator.onLine) {
+    try {
+      const response = await fetch(API_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      if (response.ok) {
+        if (saveNote) saveNote.textContent = "Enregistré en ligne";
+        if (dot) dot.className = "dot ok";
+        return;
+      }
+    } catch (err) {
+      console.warn("Échec de l'envoi en ligne, bascule hors-ligne...", err);
+    }
+  }
+
+  // Si hors-ligne ou si la requête a échoué :
+  await saveOffline(data);
+  
+  if (saveNote) saveNote.textContent = "Sauvegardé hors ligne (synchro en attente)";
+  if (dot) dot.className = "dot";
+
+  // Demande au Service Worker de tenter une synchronisation en arrière-plan
+  if ('serviceWorker' in navigator && 'SyncManager' in window) {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      await reg.sync.register('sync-joueuses-data');
+    } catch (e) {
+      console.warn("Background Sync non supporté directement:", e);
+    }
+  }
+}
+
+// Stockage temporaire dans IndexedDB
+async function saveOffline(data) {
+  const db = await openDB();
+  const tx = db.transaction("pending_data", "readwrite");
+  tx.objectStore("pending_data").add({ payload: data, timestamp: Date.now() });
+  return tx.complete;
+}
+
+// 3. Écoute du retour d'Internet en direct
+window.addEventListener('online', async () => {
+  const saveNote = document.querySelector('.save-note') || document.getElementById('sync-status');
+  if (saveNote) saveNote.textContent = "Connexion rétablie : Synchronisation...";
+  
+  if ('serviceWorker' in navigator && 'SyncManager' in window) {
+    const reg = await navigator.serviceWorker.ready;
+    await reg.sync.register('sync-joueuses-data');
+  }
+});
 </script>
 </body>
 </html>
