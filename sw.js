@@ -1,7 +1,4 @@
-// Service worker — permet à l'outil de continuer à fonctionner sans internet
-// après une première visite (mise en cache automatique des pages visitées).
-
-const CACHE_NAME = "bateliers-tri-cache-v2";
+const CACHE_NAME = "bateliers-tri-cache-v3";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -20,8 +17,12 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+// Interception des requêtes pour gestion du cache (mise en cache des fichiers
+// de l'app — HTML/CSS/JS — pour un fonctionnement hors-ligne de l'interface).
+// Note : la synchronisation des DONNÉES (joueuses, évaluations) ne passe plus
+// par ici, elle est gérée directement par le SDK Firestore dans index.html,
+// qui a sa propre file d'attente hors-ligne intégrée.
 self.addEventListener("fetch", (event) => {
-  // On ne gère que les requêtes GET du même site
   if (event.request.method !== "GET" || !event.request.url.startsWith(self.location.origin)) {
     return;
   }
@@ -29,12 +30,10 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     caches.open(CACHE_NAME).then(async (cache) => {
       try {
-        // En ligne : on va chercher la version fraîche et on la met en cache
         const response = await fetch(event.request);
         cache.put(event.request, response.clone());
         return response;
       } catch (err) {
-        // Hors ligne : on sert la version en cache si elle existe
         const cached = await cache.match(event.request);
         if (cached) return cached;
         throw err;
