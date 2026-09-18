@@ -1,7 +1,7 @@
 // Service worker — permet à l'outil de continuer à fonctionner sans internet
 // après une première visite (mise en cache automatique des pages visitées).
 
-const CACHE_NAME = "bateliers-tri-cache-v1";
+const CACHE_NAME = "bateliers-tri-cache-v2";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
