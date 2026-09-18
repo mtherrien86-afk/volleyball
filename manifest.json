@@ -1,7 +1,7 @@
 {
   "name": "Tri des joueuses — Les Bateliers",
   "short_name": "Tri Bateliers",
-  "start_url": "./index.html",
+  "start_url": "./tri-volleyball.html",
   "display": "standalone",
   "background_color": "#14202B",
   "theme_color": "#1A2632",
