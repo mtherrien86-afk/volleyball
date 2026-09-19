@@ -153,11 +153,22 @@
 
   .row-wrap{ display:flex; flex-direction:column; gap:8px; }
 
+  .score-wrap{ display:flex; flex-direction:column; align-items:flex-end; gap:3px; }
   .score-badge{
     font-size: 12px; font-weight:700; color: var(--yellow);
     background: rgba(248,174,27,0.14); padding: 5px 10px; border-radius: 8px;
     white-space:nowrap; font-variant-numeric: tabular-nums;
   }
+  .pending-badge{
+    font-size: 10.5px; font-weight:600; color: var(--essai);
+    white-space:nowrap;
+  }
+  .pending-badge.done{ color: var(--confirmee); }
+  .eval-pending-note{
+    font-size: 12px; font-weight:600; color: var(--essai);
+    background: var(--essai-bg); border-radius: 8px; padding: 8px 12px; margin-bottom:10px;
+  }
+  .eval-pending-note.done{ color: var(--confirmee); background: var(--confirmee-bg); }
   .eval-toggle-btn{
     border: 1px solid var(--line); background: var(--paper); color: var(--text-dim);
     padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight:600; cursor:pointer;
@@ -605,7 +616,6 @@ const DEFAULT_SCALES = [
     id: "scale-20",
     name: "Échelle 20 pts",
     levels: [
-      { label: "À évaluer", points: 0 },
       { label: "Faible", points: 4 },
       { label: "En progression", points: 8 },
       { label: "Correct", points: 15 },
@@ -761,6 +771,16 @@ function applyState(state) {
       c.scaleId = migratedScale.id;
       delete c.levels;
     }
+  });
+
+  // Migration : les qualités à points fixes n'avaient auparavant que « sélectionnée »
+  // (équivalent à « Oui »). On complète les évaluations existantes en conséquence.
+  Object.values(evaluations).forEach(playerEv => {
+    Object.values(playerEv).forEach(entry => {
+      if (entry.type === "flat" && typeof entry.value !== "boolean") {
+        entry.value = true;
+      }
+    });
   });
 }
 
@@ -983,6 +1003,8 @@ function renderList() {
     const cutPill = `<button class="pill cut-pill ${isCut ? "active" : ""}" data-toggle="${CUT_ID}" data-owner="${p.id}">Coupée</button>`;
     const isExpanded = expandedPlayerId === p.id;
 
+    const pending = pendingQualities(p.id).length;
+
     return `
       <div class="row-wrap">
         <div class="row ${isCut ? 'cut' : ''}" draggable="true" data-id="${p.id}">
@@ -995,7 +1017,13 @@ function renderList() {
               <div class="tags">${pillsHtml}${cutPill}</div>
             </div>
           </div>
-          <div class="score-badge" title="Pointage total">${playerTotal(p.id)} pts</div>
+          <div class="score-wrap">
+            <div class="score-badge" title="Pointage total">${playerTotal(p.id)} pts</div>
+            ${criteria.length
+              ? `<div class="pending-badge ${pending === 0 ? "done" : ""}">${pending > 0 ? `${pending} à évaluer` : "Complet"}</div>`
+              : ""
+            }
+          </div>
           <button class="eval-toggle-btn ${isExpanded ? "open" : ""}" data-eval="${p.id}">${isExpanded ? "Fermer" : "Noter"}</button>
         </div>
         ${isExpanded ? `<div class="row-eval-inline" id="rowEval-${p.id}"></div>` : ""}
@@ -1201,7 +1229,7 @@ function playerTotal(playerId) {
       const q = criteria.find(c => c.id === qid);
       if (!q) continue;
       if (q.type === "flat") {
-        total += q.points;
+        if (ev[qid].value === true) total += q.points;
       } else if (q.type === "scale") {
         const scale = scales.find(s => s.id === q.scaleId);
         const lvl = scale && scale.levels[ev[qid].levelIndex];
@@ -1212,18 +1240,31 @@ function playerTotal(playerId) {
   return total;
 }
 
+function pendingQualities(playerId) {
+  const ev = evaluations[playerId] || {};
+  // Une qualité est « à évaluer » tant qu'aucune sélection n'a été faite pour elle
+  return criteria.filter(c => !ev[c.id]);
+}
+
 function evalPanelHTML(player) {
   const ev = evaluations[player.id] || {};
 
   const qualCardsHtml = criteria.map(c => {
     if (c.type === "flat") {
-      const selected = !!ev[c.id];
+      const state = ev[c.id]; // undefined = pas encore noté, {value:true}=oui, {value:false}=non
+      const isYes = state && state.value === true;
+      const isNo = state && state.value === false;
       return `
         <div class="eval-qual-card">
           <div class="eval-qual-name">${c.name}</div>
-          <button class="eval-flat-btn ${selected ? "selected" : ""}" data-flat="${c.id}">
-            ${selected ? "✓ Sélectionnée" : `Sélectionner (${c.points} pts)`}
-          </button>
+          <div class="eval-level-btns">
+            <button class="eval-level-btn ${isNo ? "selected" : ""}" data-flat-no="${c.id}">
+              Non<span class="lb-pts">0 pt</span>
+            </button>
+            <button class="eval-level-btn ${isYes ? "selected" : ""}" data-flat-yes="${c.id}">
+              Oui<span class="lb-pts">${c.points} pt${c.points > 1 ? "s" : ""}</span>
+            </button>
+          </div>
         </div>
       `;
     }
@@ -1251,12 +1292,22 @@ function evalPanelHTML(player) {
     `;
   }).join("");
 
+  const pending = pendingQualities(player.id);
+
   return `
     <div class="eval-panel-head">
       <span class="ep-name">${player.name}</span>
       <span class="ep-pts">${playerTotal(player.id)} pts</span>
       <button class="eval-panel-close" data-close-eval="${player.id}">✕</button>
     </div>
+    ${criteria.length
+      ? `<div class="eval-pending-note ${pending.length ? "" : "done"}">${
+          pending.length
+            ? `${pending.length} qualité${pending.length > 1 ? "s" : ""} à évaluer : ${pending.map(c => c.name).join(", ")}`
+            : "Toutes les qualités sont évaluées"
+        }</div>`
+      : ""
+    }
     <div class="eval-qual-card eval-sec-card">
       <div class="eval-qual-name">Secondaire (automatique)</div>
       <div class="eval-sec-note">Sec. ${player.sec} → +${player.sec} pt${player.sec > 1 ? "s" : ""}</div>
@@ -1273,14 +1324,31 @@ function attachEvalPanelEvents(container, player) {
     };
   });
 
-  container.querySelectorAll("[data-flat]").forEach(btn => {
+  container.querySelectorAll("[data-flat-yes]").forEach(btn => {
     btn.onclick = () => {
-      const qid = btn.dataset.flat;
+      const qid = btn.dataset.flatYes;
       if (!evaluations[player.id]) evaluations[player.id] = {};
-      if (evaluations[player.id][qid]) {
+      const current = evaluations[player.id][qid];
+      if (current && current.value === true) {
+        // Re-cliquer désélectionne (retour à « pas encore noté »)
         delete evaluations[player.id][qid];
       } else {
-        evaluations[player.id][qid] = { type: "flat" };
+        evaluations[player.id][qid] = { type: "flat", value: true };
+      }
+      render();
+      scheduleSaveLive();
+    };
+  });
+
+  container.querySelectorAll("[data-flat-no]").forEach(btn => {
+    btn.onclick = () => {
+      const qid = btn.dataset.flatNo;
+      if (!evaluations[player.id]) evaluations[player.id] = {};
+      const current = evaluations[player.id][qid];
+      if (current && current.value === false) {
+        delete evaluations[player.id][qid];
+      } else {
+        evaluations[player.id][qid] = { type: "flat", value: false };
       }
       render();
       scheduleSaveLive();
