@@ -597,7 +597,7 @@ const initialData = [
 
 let players = [];
 let filterSec = "all";
-let filterTag = "all";
+let filterTags = new Set(); // vide = tous statuts ; plusieurs statuts = logique OU
 let dragId = null;
 let saveTimer = null;
 let activeTab = "roster";
@@ -962,12 +962,22 @@ function renderFilters() {
   });
 
   const tagBox = document.getElementById("filterTag");
-  const tagOpts = [{id:"all", label:"Tous statuts"}, ...STATUS_OPTIONS, {id:CUT_ID, label:"Coupée"}];
-  tagBox.innerHTML = tagOpts.map(t => `
-    <button class="chip-btn ${filterTag === t.id ? 'active' : ''}" data-tag="${t.id}">${t.label}</button>
-  `).join("");
+  const tagOpts = [{ id: "all", label: "Tous statuts" }, ...STATUS_OPTIONS, { id: CUT_ID, label: "Coupée" }];
+  tagBox.innerHTML = tagOpts.map(t => {
+    const isActive = t.id === "all" ? filterTags.size === 0 : filterTags.has(t.id);
+    return `<button class="chip-btn ${isActive ? 'active' : ''}" data-tag="${t.id}">${t.label}</button>`;
+  }).join("");
   tagBox.querySelectorAll("button").forEach(b => {
-    b.onclick = () => { filterTag = b.dataset.tag; render(); };
+    b.onclick = () => {
+      if (b.dataset.tag === "all") {
+        filterTags.clear();
+      } else if (filterTags.has(b.dataset.tag)) {
+        filterTags.delete(b.dataset.tag);
+      } else {
+        filterTags.add(b.dataset.tag);
+      }
+      render();
+    };
   });
 }
 
@@ -982,7 +992,7 @@ function renderList() {
   const emptyMsg = document.getElementById("emptyMsg");
   let visible = players.filter(p => {
     if (filterSec !== "all" && p.sec !== filterSec) return false;
-    if (filterTag !== "all" && !p.tags.includes(filterTag)) return false;
+    if (filterTags.size > 0 && !p.tags.some(t => filterTags.has(t))) return false;
     return true;
   });
 
