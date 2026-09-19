@@ -164,6 +164,9 @@
     white-space:nowrap;
   }
   .pending-badge.done{ color: var(--confirmee); }
+  .pending-inline{
+    font-size: 11px; font-weight:500; color: var(--essai); margin-top:4px;
+  }
   .eval-pending-note{
     font-size: 12px; font-weight:600; color: var(--essai);
     background: var(--essai-bg); border-radius: 8px; padding: 8px 12px; margin-bottom:10px;
@@ -1003,7 +1006,7 @@ function renderList() {
     const cutPill = `<button class="pill cut-pill ${isCut ? "active" : ""}" data-toggle="${CUT_ID}" data-owner="${p.id}">Coupée</button>`;
     const isExpanded = expandedPlayerId === p.id;
 
-    const pending = pendingQualities(p.id).length;
+    const pendingList = pendingQualities(p.id);
 
     return `
       <div class="row-wrap">
@@ -1016,11 +1019,15 @@ function renderList() {
               <span class="sec-badge">Sec. ${p.sec}</span>
               <div class="tags">${pillsHtml}${cutPill}</div>
             </div>
+            ${criteria.length && pendingList.length
+              ? `<div class="pending-inline">À évaluer : ${pendingList.map(c => c.name).join(", ")}</div>`
+              : ""
+            }
           </div>
           <div class="score-wrap">
             <div class="score-badge" title="Pointage total">${playerTotal(p.id)} pts</div>
             ${criteria.length
-              ? `<div class="pending-badge ${pending === 0 ? "done" : ""}">${pending > 0 ? `${pending} à évaluer` : "Complet"}</div>`
+              ? `<div class="pending-badge ${pendingList.length === 0 ? "done" : ""}">${pendingList.length > 0 ? `${pendingList.length} à évaluer` : "Complet"}</div>`
               : ""
             }
           </div>
